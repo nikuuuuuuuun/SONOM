@@ -4,10 +4,33 @@ import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
 import { ProductCard } from '@/components/ProductCard'
 
-async function getProductsByCategory(slug: string) {
+type Category = {
+  id: string
+  name: string
+  handle: string
+}
+
+async function getCategoryByHandle(handle: string): Promise<Category | null> {
   try {
     const res = await fetch(
-      `${BACKEND_URL}/store/products?category_id[]=${slug}`,
+      `${BACKEND_URL}/store/product-categories?handle=${handle}`,
+      {
+        headers: { 'x-publishable-api-key': PUBLISHABLE_KEY },
+        next: { revalidate: 60 },
+      },
+    )
+    if (!res.ok) return null
+    const json = await res.json()
+    return json.product_categories?.[0] || null
+  } catch {
+    return null
+  }
+}
+
+async function getProductsByCategoryId(categoryId: string) {
+  try {
+    const res = await fetch(
+      `${BACKEND_URL}/store/products?category_id=${categoryId}`,
       {
         headers: { 'x-publishable-api-key': PUBLISHABLE_KEY },
         next: { revalidate: 60 },
@@ -28,8 +51,6 @@ const categoryNames: Record<string, string> = {
   revolucionarias: 'Revolucionarias',
   'artistas-plasticos': 'Artistas Plasticos',
   escritores: 'Escritores',
-  'musica-danza': 'Musica y Danza',
-  'cine-tv': 'Cine y Television',
   'mitologia-leyendas': 'Mitologia y Leyendas',
   'ciencia-conocimiento': 'Ciencia y Conocimiento',
 }
@@ -46,7 +67,10 @@ export default async function CategoryPage({
     notFound()
   }
 
-  const products = await getProductsByCategory(slug)
+  const category = await getCategoryByHandle(slug)
+  const products = category
+    ? await getProductsByCategoryId(category.id)
+    : []
 
   return (
     <>

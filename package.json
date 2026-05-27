@@ -17,11 +17,5 @@
   "devDependencies": {
     "turbo": "^2.0.14",
     "prettier": "^3.2.5"
-  },
-  "pnpm": {
-    "overrides": {
-      "@types/react": "19.0.5",
-      "@types/react-dom": "19.0.5"
-    }
   }
 }

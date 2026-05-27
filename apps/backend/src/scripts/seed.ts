@@ -1,12 +1,9 @@
 import type { MedusaContainer } from '@medusajs/framework/types'
+import { Modules } from '@medusajs/framework/utils'
+import { IProductModuleService } from '@medusajs/framework/types'
 
 export default async function seed({ container }: { container: MedusaContainer }) {
-  const productModuleService = container.resolve('productModuleService') as {
-    listProductCategories: (filter: { handle: string }) => Promise<Array<{ id: string }>>
-    createProductCategories: (
-      data: Array<{ name: string; handle: string; description: string }>,
-    ) => Promise<unknown>
-  }
+  const productModuleService = container.resolve(Modules.PRODUCT) as IProductModuleService
 
   const categories = [
     { name: 'Precolombinas', handle: 'precolombinas', description: 'Figuras precolombinas' },
@@ -23,6 +20,11 @@ export default async function seed({ container }: { container: MedusaContainer }
     const existing = await productModuleService.listProductCategories({ handle: cat.handle })
     if (existing.length === 0) {
       await productModuleService.createProductCategories([cat])
+      console.log(`[seed] Created category: ${cat.name}`)
+    } else {
+      console.log(`[seed] Category already exists: ${cat.name}`)
     }
   }
+
+  console.log('[seed] Done')
 }

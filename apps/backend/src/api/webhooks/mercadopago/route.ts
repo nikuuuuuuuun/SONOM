@@ -1,8 +1,6 @@
 import { MedusaRequest, MedusaResponse } from '@medusajs/framework/http'
-
-type OrderService = {
-  updateOrder(id: string, data: Record<string, unknown>): Promise<void>
-}
+import { IOrderModuleService } from '@medusajs/framework/types'
+import { Modules } from '@medusajs/framework/utils'
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const body = req.body as {
@@ -25,9 +23,11 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       })
       const payment = await mpRes.json()
 
-      if (payment.status === 'approved') {
-        const orderService = req.scope.resolve('orderService') as OrderService
-        await orderService.updateOrder(payment.external_reference, { payment_status: 'captured' })
+      if (payment.status === 'approved' && payment.external_reference) {
+        const orderModuleService = req.scope.resolve(Modules.ORDER) as IOrderModuleService
+        await orderModuleService.updateOrders(payment.external_reference, {
+          metadata: { payment_id: paymentId, payment_status: 'captured' },
+        })
       }
     } catch (error) {
       console.error('[MercadoPago] Webhook error:', error)

@@ -1,32 +1,14 @@
 import { SubscriberArgs, SubscriberConfig } from '@medusajs/medusa'
-
-type Order = {
-  id: string
-  display_id: number
-  email: string
-  total: number
-  currency_code: string
-  customer?: { first_name?: string; last_name?: string }
-  shipping_address?: {
-    address_1?: string
-    city?: string
-    province?: string
-    postal_code?: string
-    country_code?: string
-  }
-  items?: Array<{ title: string; quantity: number; unit_price: number }>
-}
-
-type OrderService = {
-  retrieveOrder(id: string, config: { relations: string[] }): Promise<Order>
-}
+import { IOrderModuleService, OrderDTO } from '@medusajs/framework/types'
+import { Modules } from '@medusajs/framework/utils'
 
 export default async function orderPlacedHandler({
   event: { data },
   container,
 }: SubscriberArgs<{ id: string }>) {
-  const orderService = container.resolve('orderService') as OrderService
-  const order = await orderService.retrieveOrder(data.id, {
+  const orderModuleService = container.resolve(Modules.ORDER) as IOrderModuleService
+
+  const order = await orderModuleService.retrieveOrder(data.id, {
     relations: ['items', 'shipping_address', 'customer'],
   })
 
@@ -39,21 +21,21 @@ export default async function orderPlacedHandler({
   const payload = {
     event: 'order.placed',
     order_id: order.id,
-    display_id: order.display_id,
+    display_id: (order as OrderDTO).display_id,
     email: order.email,
     customer: {
-      first_name: order.customer?.first_name,
-      last_name: order.customer?.last_name,
+      first_name: (order as any).customer?.first_name,
+      last_name: (order as any).customer?.last_name,
       email: order.email,
     },
     shipping_address: {
-      address_1: order.shipping_address?.address_1,
-      city: order.shipping_address?.city,
-      province: order.shipping_address?.province,
-      postal_code: order.shipping_address?.postal_code,
-      country_code: order.shipping_address?.country_code,
+      address_1: (order as any).shipping_address?.address_1,
+      city: (order as any).shipping_address?.city,
+      province: (order as any).shipping_address?.province,
+      postal_code: (order as any).shipping_address?.postal_code,
+      country_code: (order as any).shipping_address?.country_code,
     },
-    items: order.items?.map((item: any) => ({
+    items: (order as any).items?.map((item: any) => ({
       title: item.title,
       quantity: item.quantity,
       unit_price: item.unit_price,
@@ -71,7 +53,7 @@ export default async function orderPlacedHandler({
     if (!response.ok) {
       console.error(`[Sonom] n8n webhook error: ${response.status}`)
     } else {
-      console.log(`[Sonom] Order #${order.display_id} sent to n8n`)
+      console.log(`[Sonom] Order #${(order as OrderDTO).display_id} sent to n8n`)
     }
   } catch (error) {
     console.error('[Sonom] n8n webhook error:', error)

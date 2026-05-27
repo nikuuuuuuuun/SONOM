@@ -1,8 +1,6 @@
 import { MedusaRequest, MedusaResponse } from '@medusajs/framework/http'
-
-type OrderService = {
-  updateOrder(id: string, data: Record<string, unknown>): Promise<void>
-}
+import { IOrderModuleService } from '@medusajs/framework/types'
+import { Modules } from '@medusajs/framework/utils'
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const { order_id, sii_status, boleta_url } = req.body as {
@@ -12,9 +10,9 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   }
 
   if (sii_status === 'exitoso' && boleta_url) {
-    const orderService = req.scope.resolve('orderService') as OrderService
+    const orderModuleService = req.scope.resolve(Modules.ORDER) as IOrderModuleService
     try {
-      await orderService.updateOrder(order_id, {
+      await orderModuleService.updateOrders(order_id, {
         metadata: {
           sii_boleta_url: boleta_url,
           sii_status: 'emitida',
