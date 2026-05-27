@@ -1,0 +1,18 @@
+{
+  "name": "sonom",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ecommerce de artesanias de figuras de la historia cultural y artistica",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:storefront\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:storefront": "cd storefront && npm run dev",
+    "build": "npm run build:backend && npm run build:storefront",
+    "build:backend": "cd backend && npm run build",
+    "build:storefront": "cd storefront && npm run build",
+    "install:all": "npm install && cd backend && npm install && cd ../storefront && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

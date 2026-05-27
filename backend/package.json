@@ -1,0 +1,30 @@
+{
+  "name": "sonom-backend",
+  "version": "1.0.0",
+  "description": "MedusaJS backend for Sonoma - Ecommerce de artesanias",
+  "private": true,
+  "scripts": {
+    "dev": "medusa develop",
+    "build": "medusa build",
+    "start": "medusa start",
+    "seed": "medusa seed --seed-file=./data/seed.js"
+  },
+  "dependencies": {
+    "@medusajs/event-bus-local": "^2.15.0",
+    "@medusajs/file-local": "^2.15.0",
+    "@medusajs/fulfillment-manual": "^2.15.0",
+    "@medusajs/medusa": "^2.15.3",
+    "@medusajs/payment-stripe": "^2.15.0",
+    "cors": "^2.8.5",
+    "medusa-payment-manual": "^1.0.0",
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "@medusajs/medusa-cli": "^1.3.0",
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.0"
+  }
+}
