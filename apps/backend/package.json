@@ -24,7 +24,8 @@
     "react-i18next": "13.5.0",
     "zod": "4.2.0",
     "pg": "^8.13.0",
-    "mercadopago": "^2.0.0"
+    "mercadopago": "^2.0.0",
+    "@medusajs/file": "2.15.3"
   },
   "devDependencies": {
     "@medusajs/test-utils": "2.15.3",

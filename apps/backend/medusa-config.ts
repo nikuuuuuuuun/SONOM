@@ -19,14 +19,7 @@ module.exports = defineConfig({
     disable: process.env.DISABLE_MEDUSA_ADMIN === 'true',
     backendUrl: process.env.ADMIN_BACKEND_URL || 'http://localhost:9000',
   },
-  plugins: [
-    {
-      resolve: '@medusajs/file-local',
-      options: {
-        upload_dir: 'uploads',
-      },
-    },
-  ],
+  plugins: [],
   modules: {
     eventBus: {
       resolve: process.env.REDIS_URL
@@ -35,12 +28,6 @@ module.exports = defineConfig({
       options: process.env.REDIS_URL
         ? { redisUrl: process.env.REDIS_URL }
         : {},
-    },
-    fileService: {
-      resolve: '@medusajs/file-local',
-      options: {
-        upload_dir: 'uploads',
-      },
     },
   },
 })
