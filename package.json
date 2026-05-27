@@ -1,18 +1,27 @@
 {
-  "name": "sonom",
-  "version": "1.0.0",
+  "name": "sonom-monorepo",
   "private": true,
-  "description": "Ecommerce de artesanias de figuras de la historia cultural y artistica",
+  "packageManager": "pnpm@10.11.1",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:storefront\"",
-    "dev:backend": "cd backend && npm run dev",
-    "dev:storefront": "cd storefront && npm run dev",
-    "build": "npm run build:backend && npm run build:storefront",
-    "build:backend": "cd backend && npm run build",
-    "build:storefront": "cd storefront && npm run build",
-    "install:all": "npm install && cd backend && npm install && cd ../storefront && npm install"
+    "dev": "pnpm -r dev",
+    "build": "pnpm -r build",
+    "backend:dev": "turbo dev --filter=@sonom/backend",
+    "backend:seed": "turbo seed --filter=@sonom/backend",
+    "storefront:dev": "turbo dev --filter=@sonom/storefront",
+    "lint": "turbo lint",
+    "clean": "turbo clean"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "turbo": "^2.0.14",
+    "prettier": "^3.2.5"
+  },
+  "pnpm": {
+    "overrides": {
+      "@types/react": "19.0.5",
+      "@types/react-dom": "19.0.5"
+    }
   }
 }

@@ -9,3 +9,6 @@ coverage/
 .turbo/
 *.db
 uploads/
+.medusa/
+.cache/
+*.tsbuildinfo
