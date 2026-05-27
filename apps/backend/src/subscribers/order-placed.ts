@@ -1,10 +1,31 @@
 import { SubscriberArgs, SubscriberConfig } from '@medusajs/medusa'
 
+type Order = {
+  id: string
+  display_id: number
+  email: string
+  total: number
+  currency_code: string
+  customer?: { first_name?: string; last_name?: string }
+  shipping_address?: {
+    address_1?: string
+    city?: string
+    province?: string
+    postal_code?: string
+    country_code?: string
+  }
+  items?: Array<{ title: string; quantity: number; unit_price: number }>
+}
+
+type OrderService = {
+  retrieveOrder(id: string, config: { relations: string[] }): Promise<Order>
+}
+
 export default async function orderPlacedHandler({
   event: { data },
   container,
 }: SubscriberArgs<{ id: string }>) {
-  const orderService = container.resolve('orderService')
+  const orderService = container.resolve('orderService') as OrderService
   const order = await orderService.retrieveOrder(data.id, {
     relations: ['items', 'shipping_address', 'customer'],
   })

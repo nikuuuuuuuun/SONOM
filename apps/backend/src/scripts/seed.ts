@@ -1,12 +1,12 @@
-import { MedusaAppLoader } from '@medusajs/framework'
+import type { MedusaContainer } from '@medusajs/framework/types'
 
-async function seed() {
-  console.log('Starting Sonom seed...')
-  const loader = new MedusaAppLoader()
-  await loader.load()
-
-  const container = loader.container
-  const productModuleService = container.resolve('productModuleService')
+export default async function seed({ container }: { container: MedusaContainer }) {
+  const productModuleService = container.resolve('productModuleService') as {
+    listProductCategories: (filter: { handle: string }) => Promise<Array<{ id: string }>>
+    createProductCategories: (
+      data: Array<{ name: string; handle: string; description: string }>,
+    ) => Promise<unknown>
+  }
 
   const categories = [
     { name: 'Precolombinas', handle: 'precolombinas', description: 'Figuras precolombinas' },
@@ -23,11 +23,6 @@ async function seed() {
     const existing = await productModuleService.listProductCategories({ handle: cat.handle })
     if (existing.length === 0) {
       await productModuleService.createProductCategories([cat])
-      console.log(`Created category: ${cat.name}`)
     }
   }
-
-  console.log('Seed completed!')
 }
-
-seed().catch(console.error)

@@ -1,13 +1,15 @@
 import { MedusaRequest, MedusaResponse } from '@medusajs/framework/http'
 
+type OrderService = {
+  updateOrder(id: string, data: Record<string, unknown>): Promise<void>
+}
+
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const body = req.body as {
     action: string
     data: { id: string }
     type: string
   }
-
-  console.log('[MercadoPago] Webhook received:', body.type, body.action)
 
   if (body.type === 'payment' && body.action === 'payment.created') {
     const paymentId = body.data.id
@@ -18,17 +20,14 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     }
 
     try {
-      const mpRes = await fetch(
-        `https://api.mercadopago.com/v1/payments/${paymentId}`,
-        { headers: { Authorization: `Bearer ${accessToken}` } },
-      )
+      const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
       const payment = await mpRes.json()
 
       if (payment.status === 'approved') {
-        const orderId = payment.external_reference
-        const orderService = req.scope.resolve('orderService')
-        await orderService.updateOrder(orderId, { payment_status: 'captured' })
-        console.log(`[MercadoPago] Payment approved for order ${orderId}`)
+        const orderService = req.scope.resolve('orderService') as OrderService
+        await orderService.updateOrder(payment.external_reference, { payment_status: 'captured' })
       }
     } catch (error) {
       console.error('[MercadoPago] Webhook error:', error)
