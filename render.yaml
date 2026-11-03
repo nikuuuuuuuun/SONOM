@@ -5,16 +5,24 @@ services:
     buildCommand: "pnpm install && pnpm build"
     startCommand: "pnpm start"
     plan: free
-    branch: main
-    buildTool: "pnpm"
     envVars:
-      - DATABASE_URL
-      - JWT_SECRET
-      - COOKIE_SECRET
-      - STORE_CORS
-      - ADMIN_CORS
-      - ADMIN_BACKEND_URL
-      - MERCADO_PAGO_PUBLIC_KEY
-      - MERCADO_PAGO_ACCESS_TOKEN
-      - N8N_ORDER_WEBHOOK_URL
-      - UPLOAD_DIR
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: COOKIE_SECRET
+        sync: false
+      - key: STORE_CORS
+        sync: false
+      - key: ADMIN_CORS
+        sync: false
+      - key: ADMIN_BACKEND_URL
+        sync: false
+      - key: MERCADO_PAGO_PUBLIC_KEY
+        sync: false
+      - key: MERCADO_PAGO_ACCESS_TOKEN
+        sync: false
+      - key: N8N_ORDER_WEBHOOK_URL
+        sync: false
+      - key: UPLOAD_DIR
+        sync: false
