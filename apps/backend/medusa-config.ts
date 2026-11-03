@@ -7,17 +7,15 @@ module.exports = defineConfig({
     databaseUrl: process.env.DATABASE_URL,
     databaseDriverOptions: {
       connection: {
-        ssl: { rejectUnauthorized: false },
+        ssl: process.env.NODE_ENV !== "development" ? { rejectUnauthorized: false } : false,
       },
     },
-    database_extra: process.env.NODE_ENV !== 'development' ? { ssl: { rejectUnauthorized: false } } : {},
-    databaseLogging: process.env.NODE_ENV === 'development',
     http: {
       storeCors: process.env.STORE_CORS!,
       adminCors: process.env.ADMIN_CORS!,
-      authCors: process.env.AUTH_CORS!,
-      jwtSecret: process.env.JWT_SECRET || 'supersecret',
-      cookieSecret: process.env.COOKIE_SECRET || 'supersecret',
+      authCors: process.env.AUTH_CORS || process.env.ADMIN_CORS!,
+      jwtSecret: process.env.JWT_SECRET || "supersecret",
+      cookieSecret: process.env.COOKIE_SECRET || "supersecret",
     },
     redisUrl: process.env.REDIS_URL,
   },
