@@ -10,6 +10,7 @@ module.exports = defineConfig({
         ssl: { rejectUnauthorized: false },
       },
     },
+    database_extra: process.env.NODE_ENV !== 'development' ? { ssl: { rejectUnauthorized: false } } : {},
     databaseLogging: process.env.NODE_ENV === 'development',
     http: {
       storeCors: process.env.STORE_CORS!,
