@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: sonom-backend
+    env: node
+    buildCommand: "pnpm install && pnpm build"
+    startCommand: "pnpm start"
+    plan: free
+    branch: main
+    buildTool: "pnpm"
+    envVars:
+      - DATABASE_URL
+      - JWT_SECRET
+      - COOKIE_SECRET
+      - STORE_CORS
+      - ADMIN_CORS
+      - ADMIN_BACKEND_URL
+      - MERCADO_PAGO_PUBLIC_KEY
+      - MERCADO_PAGO_ACCESS_TOKEN
+      - N8N_ORDER_WEBHOOK_URL
+      - UPLOAD_DIR
