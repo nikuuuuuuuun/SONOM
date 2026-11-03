@@ -1,11 +1,14 @@
 services:
   - type: web
     name: sonom-backend
+    rootDir: apps/backend
     env: node
     buildCommand: "pnpm install && pnpm build"
     startCommand: "pnpm start"
     plan: free
     envVars:
+      - key: PORT
+        value: 9000
       - key: DATABASE_URL
         sync: false
       - key: JWT_SECRET
