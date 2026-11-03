@@ -1,9 +1,13 @@
 import type { MedusaContainer } from '@medusajs/framework/types'
 import { Modules } from '@medusajs/framework/utils'
-import { IProductModuleService } from '@medusajs/framework/types'
 
 export default async function seed({ container }: { container: MedusaContainer }) {
-  const productModuleService = container.resolve(Modules.PRODUCT) as IProductModuleService
+  const productModuleService = container.resolve(Modules.PRODUCT) as any
+  const regionModuleService = container.resolve(Modules.REGION) as any
+  const storeModuleService = container.resolve(Modules.STORE) as any
+  const salesChannelModuleService = container.resolve(Modules.SALES_CHANNEL) as any
+  const fulfillmentModuleService = container.resolve(Modules.FULFILLMENT) as any
+  const workflowsService = container.resolve('workflows') as any
 
   const categories = [
     { name: 'Precolombinas', handle: 'precolombinas', description: 'Figuras precolombinas' },
@@ -24,6 +28,67 @@ export default async function seed({ container }: { container: MedusaContainer }
     } else {
       console.log(`[seed] Category already exists: ${cat.name}`)
     }
+  }
+
+  // Region (Chile / CLP)
+  let regions = await regionModuleService.listRegions({})
+  let region = regions.find((r: any) => r.currency_code === 'clp')
+  if (!region) {
+    region = await regionModuleService.createRegions({
+      name: 'Chile',
+      currency_code: 'clp',
+      countries: ['cl'],
+      automatic_taxes: true,
+    })
+    console.log(`[seed] Created region: ${region.name}`)
+  } else {
+    console.log(`[seed] Region already exists: ${region.name}`)
+  }
+
+  const stores = await storeModuleService.listStores({})
+  if (stores.length) {
+    await storeModuleService.updateStores(stores[0].id, { default_region_id: region.id })
+    console.log('[seed] Default store region updated')
+  }
+
+  const existingProducts = await productModuleService.listProducts({ handle: 'violeta-parra' })
+  if (existingProducts.length === 0) {
+    const salesChannels = await salesChannelModuleService.listSalesChannels({})
+    const shippingProfiles = await fulfillmentModuleService.listShippingProfiles({})
+    const revCategories = await productModuleService.listProductCategories({ handle: 'revolucionarias' })
+
+    await workflowsService.run('create-products', {
+      input: {
+        products: [
+          {
+            title: 'Violeta Parra',
+            handle: 'violeta-parra',
+            subtitle: 'Figura artesanal homenaje',
+            description:
+              'Figura Artesanal: Homenaje a Violeta Parra. Lleva a tu hogar un pedazo de la historia y el alma de la cultura latinoamericana con esta maravillosa figura artesanal inspirada en Violeta Parra. Esculpida y pintada a mano con un profundo nivel de detalle.',
+            thumbnail: '/figuras/violeta1.jpg',
+            status: 'published',
+            category_ids: revCategories.length ? [revCategories[0].id] : [],
+            sales_channels: salesChannels.length ? [{ id: salesChannels[0].id }] : [],
+            shipping_profile_id: shippingProfiles.length ? shippingProfiles[0].id : undefined,
+            options: [{ title: 'Tipo', values: ['Unica'] }],
+            variants: [
+              {
+                title: 'Violeta Parra',
+                sku: 'VIOLETA-001',
+                options: { Tipo: 'Unica' },
+                prices: [{ amount: 150000, currency_code: 'clp' }],
+                manage_inventory: false,
+                allow_backorder: true,
+              },
+            ],
+          },
+        ],
+      },
+    })
+    console.log('[seed] Created product: Violeta Parra')
+  } else {
+    console.log('[seed] Product already exists: Violeta Parra')
   }
 
   console.log('[seed] Done')

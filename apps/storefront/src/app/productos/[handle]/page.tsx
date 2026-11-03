@@ -2,16 +2,19 @@ import { notFound } from 'next/navigation'
 import { BACKEND_URL, PUBLISHABLE_KEY } from '@/lib/constants'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
+import { getRegionId } from '@/lib/medusa'
+import AddToCartBtn from '@/components/cart/add-to-cart-btn'
 
 async function getProduct(handle: string) {
   try {
-    const res = await fetch(
-      `${BACKEND_URL}/store/products?handle=${handle}`,
-      {
-        headers: { 'x-publishable-api-key': PUBLISHABLE_KEY },
-        next: { revalidate: 60 },
-      },
-    )
+    const regionId = await getRegionId()
+    const url = new URL(`${BACKEND_URL}/store/products`)
+    url.searchParams.set('handle', handle)
+    if (regionId) url.searchParams.set('region_id', regionId)
+    const res = await fetch(url.toString(), {
+      headers: { 'x-publishable-api-key': PUBLISHABLE_KEY },
+      next: { revalidate: 60 },
+    })
     if (!res.ok) return null
     const json = await res.json()
     return json.products?.[0] || null
@@ -32,16 +35,22 @@ export default async function ProductDetailPage({
     notFound()
   }
 
-  const price = product.variants?.[0]?.prices?.[0]
-  const amount = price ? (price.amount / 100).toFixed(2) : '0.00'
-  const currency = price?.currency_code?.toUpperCase() || 'MXN'
+  const variant = product.variants?.[0]
+  const cp = variant?.calculated_price
+  const amount = cp?.calculated_amount ?? 0
+  const currency = (cp?.currency_code ?? 'clp').toUpperCase()
+
+  const formattedPrice = new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency,
+  }).format(amount)
 
   return (
     <>
       <Header />
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-12 md:grid-cols-2">
-          <div className="aspect-square overflow-hidden rounded-xl bg-sonom-bg">
+          <div className="aspect-square overflow-hidden rounded-xl2 bg-sonom-bg shadow-card">
             {product.thumbnail ? (
               <img
                 src={product.thumbnail}
@@ -55,15 +64,18 @@ export default async function ProductDetailPage({
             )}
           </div>
 
-          <div>
-            <h1 className="font-serif text-4xl font-bold text-sonom-text">
+          <div className="flex flex-col">
+            <p className="text-sm uppercase tracking-[0.3em] text-sonom-muted">
+              Artesania unica
+            </p>
+            <h1 className="mt-2 font-serif text-4xl font-bold text-sonom-text">
               {product.title}
             </h1>
             {product.subtitle && (
               <p className="mt-2 text-lg text-sonom-muted">{product.subtitle}</p>
             )}
             <p className="mt-6 text-3xl font-bold text-sonom-primary">
-              ${amount} {currency}
+              {formattedPrice}
             </p>
 
             {product.description && (
@@ -71,15 +83,15 @@ export default async function ProductDetailPage({
                 <h2 className="mb-3 font-serif text-lg font-semibold text-sonom-text">
                   Descripcion
                 </h2>
-                <p className="leading-relaxed text-sonom-muted">
+                <p className="leading-relaxed text-sonom-muted whitespace-pre-line">
                   {product.description}
                 </p>
               </div>
             )}
 
-            <button className="mt-10 w-full rounded-full bg-sonom-primary px-8 py-4 text-lg font-semibold text-white transition-colors hover:bg-sonom-secondary">
-              Agregar al carrito
-            </button>
+            <div className="mt-10">
+              <AddToCartBtn variantId={product.variants?.[0]?.id} />
+            </div>
           </div>
         </div>
       </main>

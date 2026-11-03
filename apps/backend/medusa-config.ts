@@ -29,5 +29,17 @@ module.exports = defineConfig({
         ? { redisUrl: process.env.REDIS_URL }
         : {},
     },
+    payment: {
+      resolve: '@medusajs/payment',
+      options: {
+        providers: [
+          {
+            resolve: './src/modules/mercado-pago',
+            id: 'mercado-pago',
+            options: { accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN },
+          },
+        ],
+      },
+    },
   },
 })

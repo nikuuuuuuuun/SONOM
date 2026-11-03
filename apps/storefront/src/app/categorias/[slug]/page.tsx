@@ -3,6 +3,7 @@ import { BACKEND_URL, PUBLISHABLE_KEY } from '@/lib/constants'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
 import { ProductCard } from '@/components/ProductCard'
+import { getRegionId } from '@/lib/medusa'
 
 type Category = {
   id: string
@@ -29,13 +30,14 @@ async function getCategoryByHandle(handle: string): Promise<Category | null> {
 
 async function getProductsByCategoryId(categoryId: string) {
   try {
-    const res = await fetch(
-      `${BACKEND_URL}/store/products?category_id=${categoryId}`,
-      {
-        headers: { 'x-publishable-api-key': PUBLISHABLE_KEY },
-        next: { revalidate: 60 },
-      },
-    )
+    const regionId = await getRegionId()
+    const url = new URL(`${BACKEND_URL}/store/products`)
+    url.searchParams.set('category_id', categoryId)
+    if (regionId) url.searchParams.set('region_id', regionId)
+    const res = await fetch(url.toString(), {
+      headers: { 'x-publishable-api-key': PUBLISHABLE_KEY },
+      next: { revalidate: 60 },
+    })
     if (!res.ok) return []
     const json = await res.json()
     return json.products || []
@@ -99,8 +101,8 @@ export default async function CategoryPage({
                 handle={product.handle}
                 title={product.title}
                 thumbnail={product.thumbnail}
-                price={product.variants?.[0]?.prices?.[0]?.amount / 100 || 0}
-                currency={product.variants?.[0]?.prices?.[0]?.currency_code || 'mxn'}
+                price={product.variants?.[0]?.calculated_price?.calculated_amount ?? 0}
+                currency={product.variants?.[0]?.calculated_price?.currency_code ?? 'clp'}
               />
             ))}
           </div>
