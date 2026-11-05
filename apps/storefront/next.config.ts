@@ -1,6 +1,10 @@
 import type { NextConfig } from 'next'
+import path from 'path'
 
 const nextConfig: NextConfig = {
+  // Necesario para la imagen Docker de producción (Dockerfile.storefront)
+  output: 'standalone',
+  outputFileTracingRoot: path.join(__dirname, '../../'),
   images: {
     remotePatterns: [
       {
@@ -13,8 +17,10 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  serverActions: {
-    bodySizeLimit: '2mb',
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '2mb',
+    },
   },
 }
 
