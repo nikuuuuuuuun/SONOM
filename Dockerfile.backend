@@ -1,0 +1,61 @@
+# === FASE 1: Dockerfile Multi-Stage - Medusa Backend ===
+# Etapa 1: Build (instala dependencias y compila admin)
+FROM node:20-alpine AS builder
+WORKDIR /build
+
+# Instalar pnpm
+RUN npm install -g pnpm
+
+# Copiar workspace definition para aprovechar caché
+COPY pnpm-workspace.yaml ./
+COPY pnpm-lock.yaml ./
+COPY .npmrc ./
+COPY apps/backend/package.json ./apps/backend/
+COPY apps/backend/tsconfig.json ./apps/backend/
+
+# Instalar solo dependencias del backend (capa caché)
+RUN pnpm install --offline --prefer-offline || pnpm install --filter @sonom/backend --frozen-lockfile
+
+# Copiar código fuente completo del backend
+COPY apps/backend ./apps/backend
+
+# Compilar el admin y preparar el build
+WORKDIR /build/apps/backend
+RUN pnpm build
+
+# === Etapa Final: Producción ligera ===
+FROM node:20-alpine AS production
+WORKDIR /app
+
+# Copiar solo archivos necesarios para ejecución
+COPY --from=builder /build/apps/backend/package.json ./
+COPY --from=builder /build/apps/backend/medusa-config.ts ./
+COPY --from=builder /build/apps/backend/src ./src
+COPY --from=builder /build/apps/backend/.medusa ./.medusa
+
+# Copiar node_modules compilados (incluye admin build)
+COPY --from=builder /build/node_modules ./node_modules
+
+# Directorio de uploads locales (vacío; en producción se usa R2)
+RUN mkdir -p uploads
+
+# Variables de entorno mínimas requeridas (Coolify las inyecta)
+ENV NODE_ENV=production
+ENV PORT=9000
+ENV DATABASE_URL=${DATABASE_URL}
+ENV REDIS_URL=${REDIS_URL}
+ENV JWT_SECRET=${JWT_SECRET}
+ENV COOKIE_SECRET=${COOKIE_SECRET}
+ENV ADMIN_BACKEND_URL=${ADMIN_BACKEND_URL}
+ENV STORE_CORS=${STORE_CORS}
+ENV ADMIN_CORS=${ADMIN_CORS}
+ENV MERCADO_PAGO_ACCESS_TOKEN=${MERCADO_PAGO_ACCESS_TOKEN}
+ENV MERCADO_PAGO_PUBLIC_KEY=${MERCADO_PAGO_PUBLIC_KEY}
+ENV N8N_ORDER_WEBHOOK_URL=${N8N_ORDER_WEBHOOK_URL}
+ENV UPLOAD_DIR=uploads
+
+# Exponer el puerto de producción
+EXPOSE 9000
+
+# Comando de inicio de Medusa v2
+CMD ["pnpm", "start"]

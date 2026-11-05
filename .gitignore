@@ -12,3 +12,4 @@ uploads/
 .medusa/
 .cache/
 *.tsbuildinfo
+.agents/

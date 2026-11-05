@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.medusa/
+*.md
+.git/
+.gitignore
+.DS_Store
+uploads/
+.env
+.env.local
+\.env\.template
+README.md
+*.log

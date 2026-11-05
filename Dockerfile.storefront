@@ -1,0 +1,35 @@
+# === FASE 1: Dockerfile Multi-Stage - Next.js Storefront ===
+# Etapa 1: Build
+FROM node:20-alpine AS builder
+WORKDIR /build
+RUN npm install -g pnpm
+
+# Copiar workspace y lock (contexto = raíz del monorepo)
+COPY pnpm-workspace.yaml ./
+COPY pnpm-lock.yaml ./
+COPY .npmrc ./
+COPY apps/storefront/package.json ./apps/storefront/
+RUN pnpm install --filter @sonom/storefront --frozen-lockfile
+
+COPY apps/storefront ./apps/storefront
+WORKDIR /build/apps/storefront
+RUN pnpm build
+
+# === Etapa Final: Producción standalone ===
+FROM node:20-alpine AS production
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=8000
+ENV HOSTNAME=0.0.0.0
+
+RUN apk add --no-cache libc6-compat
+
+# En monorepo, el standalone conserva la ruta apps/storefront/
+COPY --from=builder /build/apps/storefront/.next/standalone ./
+COPY --from=builder /build/apps/storefront/.next/static ./apps/storefront/.next/static
+COPY --from=builder /build/apps/storefront/public ./apps/storefront/public
+
+EXPOSE 8000
+CMD ["node", "apps/storefront/server.js"]
