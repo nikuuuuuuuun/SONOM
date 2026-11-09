@@ -9,8 +9,13 @@
     "dev": "pnpm -r dev",
     "build": "pnpm -r build",
     "backend:dev": "turbo dev --filter=@sonom/backend",
+    "backend:build": "turbo build --filter=@sonom/backend",
     "backend:seed": "turbo seed --filter=@sonom/backend",
     "storefront:dev": "turbo dev --filter=@sonom/storefront",
+    "storefront:build": "turbo build --filter=@sonom/storefront",
+    "hybrid": "node scripts/hybrid.mjs",
+    "hybrid:sh": "bash scripts/startup.sh",
+    "hybrid:ps1": "powershell -ExecutionPolicy Bypass -File scripts/startup.ps1",
     "lint": "turbo lint",
     "clean": "turbo clean"
   },

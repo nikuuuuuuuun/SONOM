@@ -1,46 +1,52 @@
+import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { BACKEND_URL, PUBLISHABLE_KEY } from '@/lib/constants'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
-import { getRegionId } from '@/lib/medusa'
-import AddToCartBtn from '@/components/cart/add-to-cart-btn'
+import { AddToCartBtn } from '@/components/cart/add-to-cart-btn'
+import { getProductByHandle } from '@/lib/catalog'
 
-async function getProduct(handle: string) {
-  try {
-    const regionId = await getRegionId()
-    const url = new URL(`${BACKEND_URL}/store/products`)
-    url.searchParams.set('handle', handle)
-    if (regionId) url.searchParams.set('region_id', regionId)
-    const res = await fetch(url.toString(), {
-      headers: { 'x-publishable-api-key': PUBLISHABLE_KEY },
-      next: { revalidate: 60 },
-    })
-    if (!res.ok) return null
-    const json = await res.json()
-    return json.products?.[0] || null
-  } catch {
-    return null
+type ProductPageProps = {
+  params: Promise<{ handle: string }>
+}
+
+export const revalidate = 60
+
+export async function generateMetadata({
+  params,
+}: ProductPageProps): Promise<Metadata> {
+  const { handle } = await params
+  const product = await getProductByHandle(handle)
+
+  if (!product) {
+    return { title: 'Producto no encontrado | SONOM' }
+  }
+
+  return {
+    title: `${product.title} | SONOM`,
+    description:
+      product.description ??
+      product.subtitle ??
+      `Figura artesanal ${product.title}.`,
+    openGraph: product.thumbnail
+      ? { images: [{ url: product.thumbnail }] }
+      : undefined,
   }
 }
 
-export default async function ProductDetailPage({
-  params,
-}: {
-  params: Promise<{ handle: string }>
-}) {
+export default async function ProductDetailPage({ params }: ProductPageProps) {
   const { handle } = await params
-  const product = await getProduct(handle)
+  const product = await getProductByHandle(handle)
 
   if (!product) {
     notFound()
   }
 
   const variant = product.variants?.[0]
-  const cp = variant?.calculated_price
-  const amount = cp?.calculated_amount ?? 0
-  const currency = (cp?.currency_code ?? 'clp').toUpperCase()
+  const price = variant?.calculated_price
+  const amount = price?.calculated_amount ?? 0
+  const currency = (price?.currency_code ?? 'clp').toUpperCase()
 
-  const formattedPrice = new Intl.NumberFormat(undefined, {
+  const formattedPrice = new Intl.NumberFormat('es-CL', {
     style: 'currency',
     currency,
   }).format(amount)
@@ -90,7 +96,13 @@ export default async function ProductDetailPage({
             )}
 
             <div className="mt-10">
-              <AddToCartBtn variantId={product.variants?.[0]?.id} />
+              {variant?.id ? (
+                <AddToCartBtn variantId={variant.id} />
+              ) : (
+                <p className="text-sonom-muted">
+                  Este producto no tiene variantes disponibles.
+                </p>
+              )}
             </div>
           </div>
         </div>

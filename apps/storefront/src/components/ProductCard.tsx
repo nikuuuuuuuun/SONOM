@@ -4,7 +4,7 @@ type ProductCardProps = {
   id: string
   handle: string
   title: string
-  thumbnail: string | null
+  thumbnail?: string | null
   price: number
   currency: string
 }

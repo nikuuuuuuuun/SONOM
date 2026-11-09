@@ -2,6 +2,9 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:8000',
+  ),
   title: 'Sonom - Artesanias de Figuras Historicas',
   description:
     'Artesanias unicas de figuras de la historia cultural y artistica. Piezas hechas a mano por artesanos mexicanos.',

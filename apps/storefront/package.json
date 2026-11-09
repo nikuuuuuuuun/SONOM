@@ -9,20 +9,13 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@medusajs/icons": "2.15.3",
-    "@medusajs/js-sdk": "2.15.3",
-    "@medusajs/ui-preset": "2.15.3",
-    "clsx": "^2.1.1",
     "next": "15.5.18",
-    "qs": "^6.12.1",
     "react": "19.0.5",
     "react-dom": "19.0.5",
     "server-only": "^0.0.1",
     "tailwindcss-radix": "^2.8.0"
   },
   "devDependencies": {
-    "@medusajs/types": "2.15.3",
-    "@types/lodash": "^4.14.195",
     "@types/node": "^20.0.0",
     "@types/react": "19.0.5",
     "@types/react-dom": "19.0.5",

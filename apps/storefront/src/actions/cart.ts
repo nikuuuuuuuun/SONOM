@@ -1,47 +1,66 @@
 'use server'
-import { cookies } from 'next/headers'
-import { revalidatePath, revalidateTag } from 'next/cache'
-import { BACKEND_URL, PUBLISHABLE_KEY } from '@/lib/constants'
-import { getRegionId } from '@/lib/medusa'
 
-export async function addToCart(variantId: string, quantity = 1) {
+import { cookies } from 'next/headers'
+import { revalidatePath } from 'next/cache'
+import { getRegionId, storeFetch } from '@/lib/api'
+import { CART_COOKIE } from '@/lib/constants'
+
+type ActionResult = { success: true } | { error: string }
+
+export async function addToCart(
+  variantId: string,
+  quantity = 1,
+): Promise<ActionResult> {
   try {
     const store = await cookies()
-    let cartId = store.get('cart_id')?.value
+    let cartId = store.get(CART_COOKIE)?.value
 
     if (!cartId) {
       const regionId = await getRegionId()
-      const res = await fetch(`${BACKEND_URL}/store/carts`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-publishable-api-key': PUBLISHABLE_KEY },
-        body: JSON.stringify({ region_id: regionId }),
-      })
-      if (!res.ok) {
-        const text = await res.text()
-        console.error('Create cart failed', res.status, text)
-        return { error: text }
+      if (!regionId) {
+        return { error: 'La tienda no tiene una region configurada.' }
       }
-      const json = await res.json()
-      cartId = json.cart.id
-      store.set('cart_id', cartId!, { httpOnly: true, sameSite: 'lax', path: '/' })
+
+      const created = await storeFetch<{ cart: { id: string } }>(
+        '/store/carts',
+        {
+          method: 'POST',
+          body: JSON.stringify({ region_id: regionId }),
+          cache: 'no-store',
+        },
+      )
+
+      cartId = created.cart.id
+      store.set(CART_COOKIE, cartId, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        path: '/',
+        maxAge: 60 * 60 * 24 * 30,
+      })
     }
 
-    const res = await fetch(`${BACKEND_URL}/store/carts/${cartId}/line-items`, {
+    await storeFetch(`/store/carts/${cartId}/line-items`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-publishable-api-key': PUBLISHABLE_KEY },
       body: JSON.stringify({ variant_id: variantId, quantity }),
+      cache: 'no-store',
     })
-    if (!res.ok) {
-      const text = await res.text()
-      console.error('Add line item failed', res.status, text)
-      return { error: text }
-    }
 
-    revalidateTag('cart')
     revalidatePath('/', 'layout')
+    revalidatePath('/cart')
+    revalidatePath('/checkout')
+
     return { success: true }
-  } catch (e) {
-    console.error('addToCart exception', e)
-    return { error: 'Unexpected error adding to cart' }
+  } catch (error) {
+    console.error('[sonom/storefront] addToCart failed', error)
+    return { error: 'No se pudo agregar el producto. Intenta nuevamente.' }
   }
+}
+
+export async function clearCart(): Promise<void> {
+  const store = await cookies()
+  store.delete(CART_COOKIE)
+  revalidatePath('/', 'layout')
+  revalidatePath('/cart')
+  revalidatePath('/checkout')
 }

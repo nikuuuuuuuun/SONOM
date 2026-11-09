@@ -1,31 +1,12 @@
-import { BACKEND_URL, PUBLISHABLE_KEY } from '@/lib/constants'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
 import { ProductCard } from '@/components/ProductCard'
-import { getRegionId } from '@/lib/medusa'
+import { getProducts } from '@/lib/catalog'
 
-async function getProducts() {
-  try {
-    const regionId = await getRegionId()
-    const url = new URL(`${BACKEND_URL}/store/products`)
-    url.searchParams.set('limit', '50')
-    if (regionId) url.searchParams.set('region_id', regionId)
-    const res = await fetch(url.toString(), {
-      headers: {
-        'x-publishable-api-key': PUBLISHABLE_KEY,
-      },
-      next: { revalidate: 60 },
-    })
-    if (!res.ok) return []
-    const json = await res.json()
-    return json.products || []
-  } catch {
-    return []
-  }
-}
+export const revalidate = 60
 
 export default async function ProductsPage() {
-  const products = await getProducts()
+  const products = await getProducts({ limit: 100 })
 
   return (
     <>
@@ -43,17 +24,18 @@ export default async function ProductsPage() {
         {products.length === 0 ? (
           <div className="rounded-xl2 bg-sonom-surface py-20 text-center text-sonom-muted shadow-card">
             <p className="text-lg">
-              Conecta el backend de Medusa para ver los productos.
+              No pudimos cargar los productos en este momento.
             </p>
             <p className="mt-2 text-sm">
-              Ejecuta <code className="rounded bg-sonom-text/10 px-2 py-1">pnpm backend:dev</code> en la raiz del proyecto.
+              Verifica que el backend de Medusa este disponible.
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {products.map((product: any) => {
+            {products.map((product) => {
               const variant = product.variants?.[0]
-              const cp = variant?.calculated_price
+              const price = variant?.calculated_price
+
               return (
                 <ProductCard
                   key={product.id}
@@ -61,8 +43,8 @@ export default async function ProductsPage() {
                   handle={product.handle}
                   title={product.title}
                   thumbnail={product.thumbnail}
-                  price={cp?.calculated_amount ?? 0}
-                  currency={cp?.currency_code ?? 'clp'}
+                  price={price?.calculated_amount ?? 0}
+                  currency={price?.currency_code ?? 'clp'}
                 />
               )
             })}

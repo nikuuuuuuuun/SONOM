@@ -12,7 +12,7 @@ export default function LoginForm() {
     const formData = new FormData(e.currentTarget)
     startTransition(async () => {
       const res = await loginCustomer(formData)
-      if (res?.error) setError(res.error)
+      if ('error' in res) setError(res.error)
     })
   }
 

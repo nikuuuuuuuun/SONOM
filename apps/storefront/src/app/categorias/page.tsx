@@ -1,19 +1,19 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
+import { getCategoriesWithCounts } from '@/lib/catalog'
 
-const categories = [
-  { name: 'Precolombinas', slug: 'precolombinas', desc: 'Figuras inspiradas en culturas precolombinas', count: 2 },
-  { name: 'Virreinales', slug: 'virreinales', desc: 'Artesanias de la epoca virreinal', count: 1 },
-  { name: 'Independencia', slug: 'independencia', desc: 'Figuras de heroes de la independencia', count: 2 },
-  { name: 'Revolucionarias', slug: 'revolucionarias', desc: 'Personajes de la revolucion mexicana', count: 2 },
-  { name: 'Artistas Plasticos', slug: 'artistas-plasticos', desc: 'Figuras de grandes artistas plasticos', count: 3 },
-  { name: 'Escritores', slug: 'escritores', desc: 'Figuras de escritores y poetas celebres', count: 3 },
-  { name: 'Mitologia y Leyendas', slug: 'mitologia-leyendas', desc: 'Figuras mitologicas y legendarias', count: 3 },
-  { name: 'Ciencia y Conocimiento', slug: 'ciencia-conocimiento', desc: 'Figuras de cientificos y pensadores', count: 1 },
-]
+export const revalidate = 300
 
-export default function CategoriesPage() {
+export const metadata: Metadata = {
+  title: 'Categorias | SONOM',
+  description: 'Explora las categorias de figuras artesanales de SONOM.',
+}
+
+export default async function CategoriesPage() {
+  const categories = await getCategoriesWithCounts()
+
   return (
     <>
       <Header />
@@ -21,23 +21,38 @@ export default function CategoriesPage() {
         <h1 className="mb-8 font-serif text-3xl font-bold text-sonom-text">
           Categorias
         </h1>
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {categories.map((cat) => (
-            <Link
-              key={cat.slug}
-              href={`/categorias/${cat.slug}`}
-              className="group rounded-xl border border-sonom-secondary/20 bg-white p-6 shadow-sm transition-all hover:shadow-md"
-            >
-              <h2 className="font-serif text-xl font-bold text-sonom-text transition-colors group-hover:text-sonom-primary">
-                {cat.name}
-              </h2>
-              <p className="mt-2 text-sm text-sonom-muted">{cat.desc}</p>
-              <p className="mt-4 text-xs text-sonom-muted/60">
-                {cat.count} productos
-              </p>
-            </Link>
-          ))}
-        </div>
+
+        {categories.length === 0 ? (
+          <div className="rounded-xl border border-sonom-secondary/20 bg-white p-12 text-center text-sonom-muted">
+            <p className="text-lg">No hay categorias disponibles.</p>
+            <p className="mt-2 text-sm">
+              Intenta nuevamente en unos minutos.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {categories.map((category) => (
+              <Link
+                key={category.id}
+                href={`/categorias/${category.handle}`}
+                className="group rounded-xl border border-sonom-secondary/20 bg-white p-6 shadow-sm transition-all hover:shadow-md"
+              >
+                <h2 className="font-serif text-xl font-bold text-sonom-text transition-colors group-hover:text-sonom-primary">
+                  {category.name}
+                </h2>
+                {category.description && (
+                  <p className="mt-2 text-sm text-sonom-muted">
+                    {category.description}
+                  </p>
+                )}
+                <p className="mt-4 text-xs text-sonom-muted/60">
+                  {category.productCount}{' '}
+                  {category.productCount === 1 ? 'producto' : 'productos'}
+                </p>
+              </Link>
+            ))}
+          </div>
+        )}
       </main>
       <Footer />
     </>

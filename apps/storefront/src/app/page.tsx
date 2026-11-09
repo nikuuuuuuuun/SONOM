@@ -1,29 +1,12 @@
 import Link from 'next/link'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
-import { BACKEND_URL, PUBLISHABLE_KEY } from '@/lib/constants'
-import { getRegionId } from '@/lib/medusa'
+import { getProducts } from '@/lib/catalog'
 
-async function getFeaturedProducts() {
-  try {
-    const regionId = await getRegionId()
-    const url = new URL(`${BACKEND_URL}/store/products`)
-    url.searchParams.set('limit', '4')
-    if (regionId) url.searchParams.set('region_id', regionId)
-    const res = await fetch(url.toString(), {
-      headers: { 'x-publishable-api-key': PUBLISHABLE_KEY },
-      next: { revalidate: 60 },
-    })
-    if (!res.ok) return []
-    const json = await res.json()
-    return json.products || []
-  } catch {
-    return []
-  }
-}
+export const revalidate = 60
 
 export default async function HomePage() {
-  const products = await getFeaturedProducts()
+  const products = await getProducts({ limit: 4 })
   const featured = products[0]
 
   const price = featured?.variants?.[0]?.calculated_price?.calculated_amount ?? 0

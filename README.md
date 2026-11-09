@@ -18,10 +18,13 @@ sonom/
 │   └── storefront/       # Next.js 15 (App Router + Tailwind)
 │       ├── src/
 │       │   ├── app/         # Paginas (SSR/SSG)
+│       │   ├── actions/     # Server actions (carrito, auth, checkout)
 │       │   ├── components/  # Componentes reutilizables
-│       │   └── lib/         # Cliente Medusa SDK
+│       │   └── lib/         # fetch nativo + helpers de catalogo
 │       ├── .env.template
 │       └── next.config.ts
+├── docs/                 # Guias de despliegue
+├── scripts/              # Runtime hibrido (Redis + Medusa + tunel)
 ├── .github/workflows/    # CI/CD
 ├── pnpm-workspace.yaml   # Monorepo
 ├── turbo.json            # Turborepo
@@ -33,7 +36,8 @@ sonom/
 - **Node.js** >= 20
 - **pnpm** >= 10 (`npm install -g pnpm`)
 - **PostgreSQL** >= 15 (recomendado: [Supabase](https://supabase.com) gratis)
-- **Redis** (opcional, para produccion)
+- **Redis** (event bus y reintentos de webhooks)
+- **cloudflared** (para exponer el backend local, ver `docs/hybrid-hosting.md`)
 
 ## Inicio Rapido
 
@@ -75,13 +79,21 @@ pnpm medusa user -e admin@sonom.mx -p tu-contrasena
 ### 5. Iniciar en desarrollo
 
 ```bash
-# Desde la raiz (ambos servicios)
+# Ambos servicios (sin tunel)
 pnpm dev
+
+# Runtime hibrido: Redis + Medusa + Cloudflare Tunnel
+pnpm hybrid
+# equivalente:
+./scripts/startup.sh        # macOS / Linux
+.\scripts\startup.ps1       # Windows
 
 # O individualmente:
 pnpm backend:dev    # Backend en :9000 + Admin en :9000/app
 pnpm storefront:dev # Storefront en :8000
 ```
+
+Guia completa de despliegue hibrido: **[docs/hybrid-hosting.md](docs/hybrid-hosting.md)**.
 
 ## Servicios "Always Free"
 
@@ -100,8 +112,10 @@ pnpm storefront:dev # Storefront en :8000
 3. Configura en `.env`:
    - `MERCADO_PAGO_PUBLIC_KEY` (frontend)
    - `MERCADO_PAGO_ACCESS_TOKEN` (backend)
+   - `MERCADO_PAGO_WEBHOOK_SECRET` (firma del webhook)
+   - `MERCADO_PAGO_NOTIFICATION_URL` (URL publica del tunel)
 4. Configura el Webhook en el panel de MP apuntando a:
-   `https://tu-backend.com/api/webhooks/mercadopago`
+   `https://api.tu-dominio.cl/webhooks/mercadopago`
 
 ## Automatizacion SII Chile con n8n
 
@@ -111,11 +125,16 @@ El subscriber `order.placed` envia automaticamente cada orden nueva a un webhook
 
 1. **Webhook** recibe `POST` con datos de la orden
 2. **HTTP Request** a API del SII para generar boleta electronica
-3. **HTTP Request** callback a `/api/webhooks/n8n-status` con:
+3. **HTTP Request** callback a `https://api.tu-dominio.cl/webhooks/n8n-status` con:
+   - Headers `x-sonom-timestamp` y `x-sonom-signature`
+     (`HMAC-SHA256(secret, "<timestamp>.<order_id>.<sii_status>.<boleta_url>")`)
    - `order_id`: ID de la orden
-   - `sii_status`: "exitoso" | "rechazado"
+   - `sii_status`: "exitoso" | "fallido" | "pendiente"
    - `boleta_url`: URL del PDF de la boleta
 4. Medusa actualiza los metadatos de la orden con el link de la boleta
+
+El subscriber `order.placed` firma el body saliente con los mismos headers
+(`HMAC-SHA256(secret, "<timestamp>.<body-crudo>")`).
 
 ## Comandos utiles
 
@@ -124,25 +143,36 @@ pnpm dev              # Inicia backend + storefront
 pnpm build            # Construye ambos proyectos
 pnpm backend:dev      # Solo backend
 pnpm storefront:dev   # Solo storefront
+pnpm hybrid           # Redis + backend + tunel
+pnpm backend:seed     # Seed idempotente
 pnpm lint             # Lint de todos los proyectos
 ```
 
-## Despliegue
+## Despliegue (hibrido)
 
-### Storefront (Vercel)
+Produccion recomendada para SONOM:
+
+- **Storefront** en Vercel (`sonom.cl`).
+- **Backend Medusa** local, expuesto con **Cloudflare Tunnel** (`api.sonom.cl`).
+- **Redis** local o gestionado para el event bus.
+
 ```bash
-# Conectar repo a Vercel, configurar env vars:
-NEXT_PUBLIC_MEDUSA_BACKEND_URL=https://tu-backend.com
+# Vercel (Project Settings > Environment Variables)
+MEDUSA_BACKEND_URL=https://api.sonom.cl
+NEXT_PUBLIC_MEDUSA_BACKEND_URL=https://api.sonom.cl
 NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY=pk_...
-NEXT_PUBLIC_DEFAULT_REGION=mx
+NEXT_PUBLIC_BASE_URL=https://sonom.cl
+NEXT_PUBLIC_DEFAULT_REGION=cl
 ```
 
-### Backend (Koyeb / Render)
-```bash
-# Usar el Dockerfile o deploy directo desde el repo
-# Configurar DATABASE_URL apuntando a Supabase
-# Configurar las demas variables de entorno
-```
+El backend local se arranca con `pnpm hybrid`. Los pasos exactos de
+`cloudflared tunnel login/create/route dns/run`, el `config.yml`, el servicio de
+Windows, Cloudflare Access y la matriz completa de variables estan en
+**[docs/hybrid-hosting.md](docs/hybrid-hosting.md)**.
+
+> El backend tambien puede desplegarse en Koyeb/Render usando
+> `Dockerfile.backend`; en ese caso omite el tunel y apunta
+> `MEDUSA_BACKEND_URL` a la URL publica del servicio.
 
 ## Licencia
 

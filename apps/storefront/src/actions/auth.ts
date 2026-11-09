@@ -1,48 +1,100 @@
 'use server'
+
 import { cookies } from 'next/headers'
-import { BACKEND_URL, PUBLISHABLE_KEY } from '@/lib/constants'
+import { storeFetch, StoreApiError } from '@/lib/api'
+import { AUTH_COOKIE } from '@/lib/constants'
 
-export async function registerCustomer(formData: FormData) {
-  const email = formData.get('email') as string
-  const password = formData.get('password') as string
-  const first_name = formData.get('first_name') as string
-  const last_name = formData.get('last_name') as string
+type AuthResult = { success: true } | { error: string }
 
-  const res = await fetch(`${BACKEND_URL}/store/customers`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-publishable-api-key': PUBLISHABLE_KEY },
-    body: JSON.stringify({ email, password, first_name, last_name }),
-  })
-  if (!res.ok) return { error: await res.text() }
+function errorMessage(error: unknown): string {
+  if (error instanceof StoreApiError) {
+    try {
+      const parsed = JSON.parse(error.body) as { message?: string }
+      if (parsed.message) {
+        return parsed.message
+      }
+    } catch {
+      // Keep the generic message below.
+    }
+  }
 
-  const loginRes = await fetch(`${BACKEND_URL}/auth/customer/emailpass`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-publishable-api-key': PUBLISHABLE_KEY },
-    body: JSON.stringify({ email, password }),
-  })
-  const { token } = await loginRes.json()
-  const store = await cookies()
-  store.set('medusa_auth_token', token, { httpOnly: true, sameSite: 'lax', path: '/' })
-  return { success: true }
+  return 'No se pudo completar la operacion. Intenta nuevamente.'
 }
 
-export async function loginCustomer(formData: FormData) {
-  const email = formData.get('email') as string
-  const password = formData.get('password') as string
-
-  const res = await fetch(`${BACKEND_URL}/auth/customer/emailpass`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-publishable-api-key': PUBLISHABLE_KEY },
-    body: JSON.stringify({ email, password }),
-  })
-  if (!res.ok) return { error: await res.text() }
-  const { token } = await res.json()
+async function persistToken(token: string): Promise<void> {
   const store = await cookies()
-  store.set('medusa_auth_token', token, { httpOnly: true, sameSite: 'lax', path: '/' })
-  return { success: true }
+  store.set(AUTH_COOKIE, token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: 60 * 60 * 24 * 7,
+  })
 }
 
-export async function logoutCustomer() {
+export async function registerCustomer(
+  formData: FormData,
+): Promise<AuthResult> {
+  const email = String(formData.get('email') ?? '')
+  const password = String(formData.get('password') ?? '')
+  const first_name = String(formData.get('first_name') ?? '')
+  const last_name = String(formData.get('last_name') ?? '')
+
+  try {
+    await storeFetch('/store/customers', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, first_name, last_name }),
+      cache: 'no-store',
+    })
+
+    const login = await storeFetch<{ token?: string }>(
+      '/auth/customer/emailpass',
+      {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+        cache: 'no-store',
+      },
+    )
+
+    if (!login.token) {
+      return { error: 'La cuenta fue creada, pero no se pudo iniciar sesion.' }
+    }
+
+    await persistToken(login.token)
+    return { success: true }
+  } catch (error) {
+    console.error('[sonom/storefront] registerCustomer failed', error)
+    return { error: errorMessage(error) }
+  }
+}
+
+export async function loginCustomer(formData: FormData): Promise<AuthResult> {
+  const email = String(formData.get('email') ?? '')
+  const password = String(formData.get('password') ?? '')
+
+  try {
+    const login = await storeFetch<{ token?: string }>(
+      '/auth/customer/emailpass',
+      {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+        cache: 'no-store',
+      },
+    )
+
+    if (!login.token) {
+      return { error: 'Credenciales invalidas.' }
+    }
+
+    await persistToken(login.token)
+    return { success: true }
+  } catch (error) {
+    console.error('[sonom/storefront] loginCustomer failed', error)
+    return { error: errorMessage(error) }
+  }
+}
+
+export async function logoutCustomer(): Promise<void> {
   const store = await cookies()
-  store.delete('medusa_auth_token')
+  store.delete(AUTH_COOKIE)
 }

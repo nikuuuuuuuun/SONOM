@@ -19,7 +19,6 @@ export function Header() {
             <Link href="/categorias" className="transition-colors hover:text-sonom-primary">Categorias</Link>
             <Link href="#" className="transition-colors hover:text-sonom-primary">Supported By Science</Link>
             <Link href="#" className="transition-colors hover:text-sonom-primary">Who We Are</Link>
-            <CartBadge />
           </nav>
 
           <div className="hidden items-center gap-4 md:flex">

@@ -1,3 +1,4 @@
+import { createHmac } from 'crypto'
 import { SubscriberArgs, SubscriberConfig } from '@medusajs/medusa'
 import { IOrderModuleService, OrderDTO } from '@medusajs/framework/types'
 import { Modules } from '@medusajs/framework/utils'
@@ -44,11 +45,25 @@ export default async function orderPlacedHandler({
     currency_code: order.currency_code,
   }
 
+  const body = JSON.stringify(payload)
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+
+  const webhookSecret = process.env.N8N_WEBHOOK_SECRET
+  if (webhookSecret) {
+    const timestamp = String(Math.floor(Date.now() / 1000))
+    headers['x-sonom-timestamp'] = timestamp
+    headers['x-sonom-signature'] = createHmac('sha256', webhookSecret)
+      .update(`${timestamp}.${body}`)
+      .digest('hex')
+  }
+
   try {
     const response = await fetch(n8nWebhookUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      headers,
+      body,
     })
     if (!response.ok) {
       console.error(`[Sonom] n8n webhook error: ${response.status}`)

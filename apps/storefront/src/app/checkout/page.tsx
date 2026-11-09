@@ -1,74 +1,64 @@
-import { cookies } from 'next/headers'
+import Link from 'next/link'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
-import MercadoPagoButton from '@/components/checkout/mercado-pago-button'
-import { BACKEND_URL, PUBLISHABLE_KEY } from '@/lib/constants'
+import { CheckoutButton } from '@/components/checkout/checkout-button'
+import { getCart } from '@/lib/cart'
 
-async function getCart(cartId: string) {
-  const res = await fetch(`${BACKEND_URL}/store/carts/${cartId}`, {
-    headers: { 'x-publishable-api-key': PUBLISHABLE_KEY },
-    cache: 'no-store',
-  })
-  if (!res.ok) return null
-  const json = await res.json()
-  return json.cart
-}
-
-async function createPaymentSession(cartId: string) {
-  const pcRes = await fetch(`${BACKEND_URL}/store/payment-collections`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-publishable-api-key': PUBLISHABLE_KEY },
-    body: JSON.stringify({ cart_id: cartId }),
-  })
-  if (!pcRes.ok) return null
-  const pcJson = await pcRes.json()
-  const collectionId = pcJson.payment_collection.id
-
-  const psRes = await fetch(`${BACKEND_URL}/store/payment-collections/${collectionId}/payment-sessions`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-publishable-api-key': PUBLISHABLE_KEY },
-    body: JSON.stringify({ provider_id: 'pp_mercado-pago_mercado-pago' }),
-  })
-  if (!psRes.ok) return null
-  const psJson = await psRes.json()
-  const session = psJson.payment_session || psJson.payment_collection?.payment_sessions?.[0]
-  return session?.data?.preference_id || session?.data?.id
-}
+export const dynamic = 'force-dynamic'
 
 export default async function CheckoutPage() {
-  const store = await cookies()
-  const cartId = store.get('cart_id')?.value
+  const cart = await getCart()
+  const items = cart?.items ?? []
+  const currency = (cart?.currency_code ?? 'clp').toUpperCase()
+  const formatter = new Intl.NumberFormat('es-CL', {
+    style: 'currency',
+    currency,
+  })
 
-  if (!cartId) {
+  if (items.length === 0) {
     return (
       <>
         <Header />
-        <main className="mx-auto max-w-3xl px-4 py-16">
-          <p className="text-sonom-muted">No hay carrito activo.</p>
+        <main className="mx-auto max-w-3xl flex-1 px-4 py-16">
+          <p className="text-sonom-muted">No hay un carrito activo.</p>
+          <Link
+            href="/productos"
+            className="mt-6 inline-block rounded-full bg-sonom-primary px-6 py-3 text-sm font-semibold text-white"
+          >
+            Ver productos
+          </Link>
         </main>
         <Footer />
       </>
     )
   }
 
-  const cart = await getCart(cartId)
-  const preferenceId = await createPaymentSession(cartId)
-
   return (
     <>
       <Header />
-      <main className="mx-auto max-w-3xl px-4 py-16">
-        <h1 className="mb-6 text-2xl font-bold text-sonom-text">Checkout</h1>
-        {cart && (
-          <p className="mb-6 text-sonom-muted">
-            Total: {cart.total} {cart.currency_code?.toUpperCase()}
-          </p>
-        )}
-        {preferenceId ? (
-          <MercadoPagoButton preferenceId={preferenceId} />
-        ) : (
-          <p className="text-red-600">No se pudo inicializar MercadoPago.</p>
-        )}
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-16">
+        <h1 className="mb-8 text-2xl font-bold text-sonom-text">Checkout</h1>
+
+        <ul className="space-y-3 rounded-xl border border-sonom-secondary/20 bg-white p-6">
+          {items.map((item) => (
+            <li key={item.id} className="flex justify-between text-sm">
+              <span className="text-sonom-text">
+                {item.product_title ?? item.title} x {item.quantity}
+              </span>
+              <span className="font-medium text-sonom-text">
+                {formatter.format(item.total ?? item.unit_price * item.quantity)}
+              </span>
+            </li>
+          ))}
+        </ul>
+
+        <p className="mt-6 text-right text-xl font-bold text-sonom-text">
+          Total: {formatter.format(cart?.total ?? 0)}
+        </p>
+
+        <div className="mt-8">
+          <CheckoutButton />
+        </div>
       </main>
       <Footer />
     </>

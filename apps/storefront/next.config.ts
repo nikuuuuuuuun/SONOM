@@ -5,6 +5,20 @@ const nextConfig: NextConfig = {
   // Necesario para la imagen Docker de producción (Dockerfile.storefront)
   output: 'standalone',
   outputFileTracingRoot: path.join(__dirname, '../../'),
+  async redirects() {
+    return [
+      {
+        source: '/carrito',
+        destination: '/cart',
+        permanent: true,
+      },
+      {
+        source: '/carrito/:path*',
+        destination: '/cart/:path*',
+        permanent: true,
+      },
+    ]
+  },
   images: {
     remotePatterns: [
       {
@@ -16,11 +30,6 @@ const nextConfig: NextConfig = {
         hostname: '**.supabase.co',
       },
     ],
-  },
-  experimental: {
-    serverActions: {
-      bodySizeLimit: '2mb',
-    },
   },
 }
 

@@ -11,6 +11,10 @@ services:
         value: 9000
       - key: DATABASE_URL
         sync: false
+      - key: DB_SSL
+        value: "true"
+      - key: DATABASE_LOGGING
+        value: "false"
       - key: JWT_SECRET
         sync: false
       - key: COOKIE_SECRET
@@ -19,13 +23,25 @@ services:
         sync: false
       - key: ADMIN_CORS
         sync: false
+      - key: AUTH_CORS
+        sync: false
       - key: ADMIN_BACKEND_URL
+        sync: false
+      - key: STOREFRONT_URL
         sync: false
       - key: MERCADO_PAGO_PUBLIC_KEY
         sync: false
       - key: MERCADO_PAGO_ACCESS_TOKEN
         sync: false
+      - key: MERCADO_PAGO_WEBHOOK_SECRET
+        sync: false
+      - key: MERCADO_PAGO_NOTIFICATION_URL
+        sync: false
+      - key: MERCADO_PAGO_STATEMENT_DESCRIPTOR
+        value: SONOM
       - key: N8N_ORDER_WEBHOOK_URL
+        sync: false
+      - key: N8N_WEBHOOK_SECRET
         sync: false
       - key: UPLOAD_DIR
         sync: false

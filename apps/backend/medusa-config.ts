@@ -2,31 +2,36 @@ import { loadEnv, defineConfig } from '@medusajs/framework/utils'
 
 loadEnv(process.env.NODE_ENV || 'development', process.cwd())
 
-const dbUrl = process.env.DATABASE_URL || ''
-const isLocalDb = /localhost|127\.0\.0\.1|::1/.test(dbUrl)
-const useDbSsl = process.env.DB_SSL === 'true' || (process.env.DB_SSL !== 'false' && !isLocalDb)
+// Loaded with require so the Zod validation runs *after* loadEnv() has populated process.env.
+const { env } = require('./src/env') as typeof import('./src/env')
+
+const isLocalDb = /localhost|127\.0\.0\.1|::1/.test(env.DATABASE_URL)
+const useDbSsl = env.DB_SSL
+  ? env.DB_SSL === 'true'
+  : !isLocalDb
 
 module.exports = defineConfig({
   projectConfig: {
-    databaseUrl: process.env.DATABASE_URL,
+    databaseUrl: env.DATABASE_URL,
     databaseDriverOptions: {
       connection: {
         ssl: useDbSsl ? { rejectUnauthorized: false } : false,
       },
     },
-    databaseLogging: process.env.NODE_ENV === 'development',
+    // Never enable query logging for tunnel/production traffic: it leaks PII and kills throughput.
+    databaseLogging: env.DATABASE_LOGGING === 'true',
     http: {
-      storeCors: process.env.STORE_CORS!,
-      adminCors: process.env.ADMIN_CORS!,
-      authCors: process.env.AUTH_CORS || process.env.ADMIN_CORS!,
-      jwtSecret: process.env.JWT_SECRET || 'supersecret',
-      cookieSecret: process.env.COOKIE_SECRET || 'supersecret',
+      storeCors: env.STORE_CORS,
+      adminCors: env.ADMIN_CORS,
+      authCors: env.AUTH_CORS,
+      jwtSecret: env.JWT_SECRET,
+      cookieSecret: env.COOKIE_SECRET,
     },
-    redisUrl: process.env.REDIS_URL,
+    redisUrl: env.REDIS_URL,
   },
   admin: {
-    disable: process.env.DISABLE_MEDUSA_ADMIN === 'true',
-    backendUrl: process.env.ADMIN_BACKEND_URL || 'http://localhost:9000',
+    disable: env.DISABLE_MEDUSA_ADMIN === 'true',
+    backendUrl: env.ADMIN_BACKEND_URL,
   },
   plugins: [
     // Plugin storage S3 (Cloudflare R2) — activar tras crear bucket
@@ -34,12 +39,10 @@ module.exports = defineConfig({
   ],
   modules: {
     eventBus: {
-      resolve: process.env.REDIS_URL
+      resolve: env.REDIS_URL
         ? '@medusajs/event-bus-redis'
         : '@medusajs/event-bus-local',
-      options: process.env.REDIS_URL
-        ? { redisUrl: process.env.REDIS_URL }
-        : {},
+      options: env.REDIS_URL ? { redisUrl: env.REDIS_URL } : {},
     },
     payment: {
       resolve: '@medusajs/payment',
@@ -48,7 +51,13 @@ module.exports = defineConfig({
           {
             resolve: './src/modules/mercado-pago',
             id: 'mercado-pago',
-            options: { accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN },
+            options: {
+              accessToken: env.MERCADO_PAGO_ACCESS_TOKEN,
+              webhookSecret: env.MERCADO_PAGO_WEBHOOK_SECRET,
+              notificationUrl: env.MERCADO_PAGO_NOTIFICATION_URL,
+              backUrl: env.STOREFRONT_URL,
+              statementDescriptor: env.MERCADO_PAGO_STATEMENT_DESCRIPTOR,
+            },
           },
         ],
       },
