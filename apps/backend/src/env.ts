@@ -118,7 +118,11 @@ const envSchema = z
 
       // Native SII invoicing is the only boleta path: fail fast if it is enabled
       // but the issuer or the API credentials are missing.
-      if (value.SII_ENABLED !== 'false') {
+      // "manual" means boletas are issued by hand through SII's e-Boleta app:
+      // no HTTP calls, no provider credentials required.
+      const manualMode = value.SII_API_URL?.toLowerCase() === 'manual'
+
+      if (value.SII_ENABLED !== 'false' && !manualMode) {
         const requiredSii: Array<[keyof typeof value, string]> = [
           ['SII_API_URL', 'SII_API_URL is required to issue boletas in production'],
           ['SII_API_KEY', 'SII_API_KEY is required to issue boletas in production'],
@@ -136,7 +140,7 @@ const envSchema = z
           }
         }
 
-        if (value.SII_API_URL && !value.SII_API_URL.startsWith('https://')) {
+        if (value.SII_API_URL && value.SII_API_URL !== 'manual' && !value.SII_API_URL.startsWith('https://')) {
           ctx.addIssue({
             code: 'custom',
             path: ['SII_API_URL'],

@@ -53,6 +53,20 @@ export default async function orderPlacedHandler({
     return
   }
 
+  // Manual mode: boletas are issued by hand through SII's e-Boleta app.
+  // We only mark the order so the admin knows it still needs a boleta.
+  if (siiInvoicing.isManualMode()) {
+    await orderModuleService.updateOrders(order.id, {
+      metadata: {
+        ...currentMetadata,
+        sii_status: 'pending_manual',
+        sii_boleta_url: null,
+        sii_updated_at: new Date().toISOString(),
+      },
+    })
+    return
+  }
+
   if (!siiInvoicing.isConfigured()) {
     console.warn(
       '[Sonom/SII] SII_API_URL, SII_API_KEY or emisor data is missing; skipping boleta emission.',

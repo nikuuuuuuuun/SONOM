@@ -163,8 +163,17 @@ function numberFrom(value: string | undefined, fallback: number): number {
  * provider supports idempotency keys, retries will not duplicate the boleta.
  */
 class SiiInvoicingService {
+  /**
+   * Manual mode: boletas are issued by hand through SII's e-Boleta app.
+   * No HTTP calls are made and no provider credentials are required.
+   */
+  isManualMode(): boolean {
+    return env.SII_API_URL?.toLowerCase() === 'manual'
+  }
+
   isConfigured(): boolean {
     if (env.SII_ENABLED === 'false') return false
+    if (this.isManualMode()) return false
 
     return Boolean(
       env.SII_API_URL &&
