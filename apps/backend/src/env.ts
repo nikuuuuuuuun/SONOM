@@ -34,8 +34,31 @@ const envSchema = z
     MERCADO_PAGO_NOTIFICATION_URL: optionalString,
     MERCADO_PAGO_STATEMENT_DESCRIPTOR: optionalString,
 
-    N8N_ORDER_WEBHOOK_URL: optionalString,
-    N8N_WEBHOOK_SECRET: optionalString,
+    // --- Native SII boleta issuer (replaces n8n) ---
+    SII_ENABLED: optionalString,
+    SII_API_URL: optionalString,
+    SII_API_KEY: optionalString,
+    SII_API_KEY_HEADER: optionalString,
+    SII_API_KEY_PREFIX: optionalString,
+    SII_IDEMPOTENCY_HEADER: optionalString,
+    SII_API_TIMEOUT_MS: optionalString,
+    SII_API_MAX_ATTEMPTS: optionalString,
+    SII_DTE_TYPE: optionalString,
+
+    SII_EMISOR_RUT: optionalString,
+    SII_EMISOR_RAZON_SOCIAL: optionalString,
+    SII_EMISOR_GIRO: optionalString,
+    SII_EMISOR_ACTIVIDAD_ECONOMICA: optionalString,
+    SII_EMISOR_DIRECCION: optionalString,
+    SII_EMISOR_COMUNA: optionalString,
+    SII_EMISOR_CIUDAD: optionalString,
+    SII_EMISOR_TELEFONO: optionalString,
+    SII_EMISOR_EMAIL: optionalString,
+
+    SII_PRICES_INCLUDE_TAX: optionalString,
+    SII_IVA_RATE: optionalString,
+    SII_CONSUMIDOR_FINAL_RUT: optionalString,
+    SII_BOLETA_URL_TEMPLATE: optionalString,
 
     UPLOAD_DIR: optionalString,
   })
@@ -93,12 +116,33 @@ const envSchema = z
         })
       }
 
-      if (value.N8N_ORDER_WEBHOOK_URL && !value.N8N_WEBHOOK_SECRET) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['N8N_WEBHOOK_SECRET'],
-          message: 'N8N_WEBHOOK_SECRET is required when N8N_ORDER_WEBHOOK_URL is configured in production',
-        })
+      // Native SII invoicing is the only boleta path: fail fast if it is enabled
+      // but the issuer or the API credentials are missing.
+      if (value.SII_ENABLED !== 'false') {
+        const requiredSii: Array<[keyof typeof value, string]> = [
+          ['SII_API_URL', 'SII_API_URL is required to issue boletas in production'],
+          ['SII_API_KEY', 'SII_API_KEY is required to issue boletas in production'],
+          ['SII_EMISOR_RUT', 'SII_EMISOR_RUT is required in production'],
+          ['SII_EMISOR_RAZON_SOCIAL', 'SII_EMISOR_RAZON_SOCIAL is required in production'],
+          ['SII_EMISOR_GIRO', 'SII_EMISOR_GIRO is required in production'],
+          ['SII_EMISOR_DIRECCION', 'SII_EMISOR_DIRECCION is required in production'],
+          ['SII_EMISOR_COMUNA', 'SII_EMISOR_COMUNA is required in production'],
+          ['SII_EMISOR_CIUDAD', 'SII_EMISOR_CIUDAD is required in production'],
+        ]
+
+        for (const [key, message] of requiredSii) {
+          if (!value[key]) {
+            ctx.addIssue({ code: 'custom', path: [key], message })
+          }
+        }
+
+        if (value.SII_API_URL && !value.SII_API_URL.startsWith('https://')) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['SII_API_URL'],
+            message: 'SII_API_URL must be a public HTTPS URL in production',
+          })
+        }
       }
     }
   })

@@ -39,9 +39,21 @@ services:
         sync: false
       - key: MERCADO_PAGO_STATEMENT_DESCRIPTOR
         value: SONOM
-      - key: N8N_ORDER_WEBHOOK_URL
+      - key: SII_API_URL
         sync: false
-      - key: N8N_WEBHOOK_SECRET
+      - key: SII_API_KEY
+        sync: false
+      - key: SII_EMISOR_RUT
+        sync: false
+      - key: SII_EMISOR_RAZON_SOCIAL
+        sync: false
+      - key: SII_EMISOR_GIRO
+        sync: false
+      - key: SII_EMISOR_DIRECCION
+        sync: false
+      - key: SII_EMISOR_COMUNA
+        sync: false
+      - key: SII_EMISOR_CIUDAD
         sync: false
       - key: UPLOAD_DIR
         sync: false

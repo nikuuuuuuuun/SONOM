@@ -14,12 +14,13 @@ Browser ──▶ https://sonom.cl            (Vercel / Next.js 15)
                 ├─▶ Supabase PostgreSQL (sesiones, pedidos, catálogo)
                 ├─▶ Redis local (event bus, reintentos de webhooks)
                 ├─▶ Mercado Pago API (preferencias, pagos, reembolsos)
-                └─▶ n8n (pedidos → SII / boletas)
+                └─▶ Proveedor DTE (boletas electronicas SII)
 ```
 
 - El **storefront** corre en Vercel. Nunca llama a `localhost`.
 - El **backend** corre localmente y se expone sólo por el túnel.
-- Mercado Pago y n8n entran por `https://api.sonom.cl`.
+- Mercado Pago entra por `https://api.sonom.cl`; el backend llama al proveedor
+  DTE por HTTPS saliente (no requiere túnel).
 - El navegador **no** necesita hablar con Medusa: todo el store usa server actions
   y `fetch` server-side con `x-publishable-api-key`.
 
@@ -162,8 +163,8 @@ cloudflared --config "$env:USERPROFILE\.cloudflared\config.yml" tunnel run sonom
 
 ### 2.6 Cloudflare Access (opcional pero recomendado)
 
-Si proteges `api.sonom.cl` con Access, **debes** permitir que Mercado Pago y n8n
-entren a los webhooks. En **Zero Trust → Access → Applications** crea una
+Si proteges `api.sonom.cl` con Access, **debes** permitir que Mercado Pago
+entre al webhook. En **Zero Trust → Access → Applications** crea una
 aplicación para `api.sonom.cl` con dos políticas:
 
 1. **Bypass — Webhooks**
@@ -183,8 +184,8 @@ Si tu panel de Access no ofrece políticas por path, crea **dos aplicaciones**:
 1. `api.sonom.cl/webhooks` → `Bypass` / `Everyone`.
 2. `api.sonom.cl` → `Service Auth` / service token `sonom-vercel`.
 
-> El bypass de `/webhooks/*` es seguro porque ambas rutas validan firma
-> criptográfica (Mercado Pago `x-signature`, n8n HMAC-SHA256 + timestamp).
+> El bypass de `/webhooks/*` es seguro porque la ruta de Mercado Pago valida
+> firma criptográfica (`x-signature` + `x-request-id` + ventana de 300 s).
 
 Si **no** usas Access, no configures los `CF_ACCESS_*` y no habrá cabeceras extra.
 
@@ -224,8 +225,30 @@ MERCADO_PAGO_WEBHOOK_SECRET=<secreto de firma de MP>
 MERCADO_PAGO_NOTIFICATION_URL=https://api.sonom.cl/webhooks/mercadopago
 MERCADO_PAGO_STATEMENT_DESCRIPTOR=SONOM
 
-N8N_ORDER_WEBHOOK_URL=https://<tu-n8n>/webhook/medusa-order-placed
-N8N_WEBHOOK_SECRET=<secreto compartido>
+# Boleta electronica nativa (reemplaza n8n)
+SII_ENABLED=true
+SII_API_URL=https://api.tu-proveedor.cl/v1/boletas
+SII_API_KEY=<api key del proveedor>
+SII_API_KEY_HEADER=Authorization
+SII_API_KEY_PREFIX=Bearer
+SII_IDEMPOTENCY_HEADER=Idempotency-Key
+SII_API_TIMEOUT_MS=15000
+SII_API_MAX_ATTEMPTS=3
+SII_DTE_TYPE=39
+
+SII_EMISOR_RUT=<RUT emisor>
+SII_EMISOR_RAZON_SOCIAL=<razon social>
+SII_EMISOR_GIRO=<giro>
+SII_EMISOR_ACTIVIDAD_ECONOMICA=<codigo actividad>
+SII_EMISOR_DIRECCION=<direccion>
+SII_EMISOR_COMUNA=<comuna>
+SII_EMISOR_CIUDAD=<ciudad>
+SII_EMISOR_EMAIL=<email>
+
+SII_PRICES_INCLUDE_TAX=true
+SII_IVA_RATE=0.19
+SII_CONSUMIDOR_FINAL_RUT=66666666-6
+SII_BOLETA_URL_TEMPLATE=
 
 UPLOAD_DIR=uploads
 ```
@@ -256,27 +279,25 @@ backend. Tampoco agregues las `back_urls` de Mercado Pago.
 
 Sin ese secreto el backend devuelve `500` en el webhook (falla cerrado).
 
-### 3.3 n8n
+### 3.3 Boleta electronica SII (nativa)
 
-- **Entrada (backend → n8n)**: `POST {N8N_ORDER_WEBHOOK_URL}` con headers
-  `x-sonom-timestamp` y `x-sonom-signature`.
-  Firma = `HMAC-SHA256(secret, "<timestamp>.<body-crudo>")`.
-- **Salida (n8n → backend)**: `POST https://api.sonom.cl/webhooks/n8n-status`
-  con headers `x-sonom-timestamp` y `x-sonom-signature`.
-  Firma = `HMAC-SHA256(secret, "<timestamp>.<order_id>.<sii_status>.<boleta_url>")`.
-- Ventana anti-replay: ±300 s. Usa el **body crudo** exacto, sin reserializar.
+El subscriber `order.placed` emite la boleta directamente contra el proveedor
+DTE. No hay n8n ni callback adicional.
 
-Payload de salida:
+1. Configura `SII_API_URL`, `SII_API_KEY` y los datos del emisor.
+2. El service hace `POST` con `Idempotency-Key: <order_id>`.
+3. El resultado queda en la orden:
+   - `metadata.sii_status`: `emitida` | `pendiente` | `fallido`
+   - `metadata.sii_folio`
+   - `metadata.sii_boleta_url`
+   - `metadata.sii_error` / `metadata.sii_attempts`
 
-```json
-{
-  "order_id": "order_01...",
-  "sii_status": "exitoso",
-  "boleta_url": "https://..."
-}
-```
+Si el proveedor devuelve solo el folio, define `SII_BOLETA_URL_TEMPLATE`, por
+ejemplo `https://api.tu-proveedor.cl/boletas/{folio}/pdf`.
 
-`sii_status` acepta `exitoso`, `fallido`, `pendiente`.
+El payload DTE se construye en
+`apps/backend/src/modules/sii-invoicing/service.ts` (`buildPayload`). Si tu
+proveedor usa otros nombres de campo, ajusta solo ese metodo.
 
 ### 3.4 Arranque
 
@@ -381,8 +402,8 @@ Checklist mínima antes de vender:
 - [ ] Pago de prueba aprobado → pedido creado y carrito vaciado
 - [ ] Webhook de MP con firma válida → `200`
 - [ ] Webhook con firma inválida → `401`
-- [ ] n8n recibe `order.placed` firmado
-- [ ] Callback SII actualiza `metadata.sii_boleta_url`
+- [ ] Pedido de prueba emite boleta y actualiza `metadata.sii_boleta_url`
+- [ ] `metadata.sii_status` es `emitida` y `metadata.sii_folio` existe
 - [ ] `DATABASE_LOGGING=false`
 
 ---
@@ -407,7 +428,9 @@ Checklist mínima antes de vender:
 
 - `STORE_CORS` sólo lista orígenes del storefront.
 - El webhook de MP valida HMAC-SHA256 + `x-request-id` + ventana de 300 s.
-- El webhook de n8n valida HMAC-SHA256 + timestamp de 300 s.
+- La emision DTE usa `Idempotency-Key` por orden y no reemite boletas ya
+  marcadas como `emitida`.
+- `SII_API_KEY` se envia solo al proveedor DTE por HTTPS saliente.
 - `JWT_SECRET` / `COOKIE_SECRET` se validan al arrancar: en producción deben
   tener ≥ 32 caracteres y no ser `supersecret`.
 - `DATABASE_LOGGING` es `false` por defecto.

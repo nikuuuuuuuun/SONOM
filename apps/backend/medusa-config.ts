@@ -1,4 +1,5 @@
 import { loadEnv, defineConfig } from '@medusajs/framework/utils'
+import { SII_INVOICING_MODULE } from './src/modules/sii-invoicing/constants'
 
 loadEnv(process.env.NODE_ENV || 'development', process.cwd())
 
@@ -38,6 +39,10 @@ module.exports = defineConfig({
     // { resolve: '@medusajs/file-s3', options: { s3_url: process.env.S3_URL, s3_credential: { access_key_id: process.env.S3_ACCESS_KEY, secret_access_key: process.env.S3_SECRET_KEY }, bucket: process.env.S3_BUCKET } },
   ],
   modules: {
+    // Native SII boleta issuer (replaces the old n8n workflow).
+    [SII_INVOICING_MODULE]: {
+      resolve: './src/modules/sii-invoicing',
+    },
     eventBus: {
       resolve: env.REDIS_URL
         ? '@medusajs/event-bus-redis'

@@ -9,7 +9,7 @@ sonom/
 ├── apps/
 │   ├── backend/          # MedusaJS v2 (API + Admin Dashboard)
 │   │   ├── src/
-│   │   │   ├── api/         # Webhooks (Mercado Pago, n8n)
+│   │   │   ├── api/         # Webhooks (Mercado Pago)
 │   │   │   ├── subscribers/ # Eventos de dominio (order.placed)
 │   │   │   ├── workflows/   # Workflows personalizados
 │   │   │   └── scripts/     # Seed de datos
@@ -102,8 +102,7 @@ Guia completa de despliegue hibrido: **[docs/hybrid-hosting.md](docs/hybrid-host
 | **Supabase** | Base de datos PostgreSQL | 500 MB, 2 proyectos |
 | **Vercel** | Storefront Next.js | 100 GB/hora, builds ilimitados |
 | **Koyeb / Render** | Backend MedusaJS | 1 vCPU, 512 MB RAM |
-| **n8n (self-hosted)** | Automatizacion SII | Ilimitado (tu VPS) |
-| **Oracle Cloud** | VPS para n8n + Redis | 4 OCPU, 24 GB RAM (siempre gratis) |
+| **Proveedor DTE** | Boletas electronicas SII | Segun proveedor (Haulmer, SimpleBoleta, etc.) |
 
 ## Integracion de Pagos: Mercado Pago
 
@@ -117,24 +116,26 @@ Guia completa de despliegue hibrido: **[docs/hybrid-hosting.md](docs/hybrid-host
 4. Configura el Webhook en el panel de MP apuntando a:
    `https://api.tu-dominio.cl/webhooks/mercadopago`
 
-## Automatizacion SII Chile con n8n
+## Boleta electronica SII (nativa, sin n8n)
 
-El subscriber `order.placed` envia automaticamente cada orden nueva a un webhook de n8n.
+El modulo `sii-invoicing` y el subscriber `order.placed` emiten la boleta
+electronica (DTE 39) directamente contra la API REST del proveedor elegido.
 
-### Flujo n8n recomendado:
+### Flujo nativo:
 
-1. **Webhook** recibe `POST` con datos de la orden
-2. **HTTP Request** a API del SII para generar boleta electronica
-3. **HTTP Request** callback a `https://api.tu-dominio.cl/webhooks/n8n-status` con:
-   - Headers `x-sonom-timestamp` y `x-sonom-signature`
-     (`HMAC-SHA256(secret, "<timestamp>.<order_id>.<sii_status>.<boleta_url>")`)
-   - `order_id`: ID de la orden
-   - `sii_status`: "exitoso" | "fallido" | "pendiente"
-   - `boleta_url`: URL del PDF de la boleta
-4. Medusa actualiza los metadatos de la orden con el link de la boleta
+1. `order.placed` entrega el ID de la orden al subscriber.
+2. El subscriber carga la orden con items, direcciones y cliente.
+3. `SiiInvoicingService` construye el payload DTE y hace `POST` a `SII_API_URL`
+   con `Idempotency-Key: <order_id>`.
+4. El resultado se guarda en `order.metadata`:
+   - `sii_status`: `emitida` | `pendiente` | `fallido`
+   - `sii_folio`
+   - `sii_boleta_url`
+   - `sii_error` / `sii_attempts`
 
-El subscriber `order.placed` firma el body saliente con los mismos headers
-(`HMAC-SHA256(secret, "<timestamp>.<body-crudo>")`).
+Las boletas ya emitidas (`sii_status = emitida`) no se vuelven a generar.
+Configura `SII_API_URL`, `SII_API_KEY` y los datos del emisor en
+`apps/backend/.env` (ver `.env.template`).
 
 ## Comandos utiles
 
